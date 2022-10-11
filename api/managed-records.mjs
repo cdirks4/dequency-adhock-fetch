@@ -1,5 +1,6 @@
 import URI from 'urijs';
-// import fetch from 'node-fetch'; for personaly testing
+// import fetch from 'node-fetch';
+// for personaly testing
 // /records endpoint
 window.path = 'http://localhost:3000/records';
 
@@ -12,24 +13,27 @@ const retrieve = async (options) => {
 	const page = options.page || 1;
 	const colors = options.colors || [];
 	let offset = (page - 1) * limit;
-
+	let incrementedLimit = limit + 1;
 	try {
 		// create URI, add search parameters to uri
-		const uri = new URI(path);
-		uri.addSearch('limit', limit);
+		const uri = new URI(window.path);
+
+		uri.addSearch('limit', incrementedLimit);
 		uri.addSearch('color[]', colors);
 		uri.addSearch('offset', offset);
 		// request and parse info from URI
 		const tempRes = await fetch(uri);
 
+		// An array containing the object of all items returned from the request + an additional index to check for next page.
 		const res = await tempRes.json();
-
 		// define transformed object
 		const transformedResponse = {};
-		// An array containing the ids of all items returned from the request.
-		transformedResponse.ids = res.map((item) => item.id);
+		// checking if response is larger than limit if so next page exists and the index needs to be removed before transforming the rest of the data
+		transformedResponse.nextPage = res.length > limit ? page + 1 : null;
+		transformedResponse.nextPage && res.pop();
 
-		// An array containing all of the items returned from the request that have a disposition value of "open". Add a fourth key to each item called isPrimary indicating whether or not the item contains a primary color (red, blue, or yellow).
+		transformedResponse.ids = res.map((item) => item.id);
+		// An array containing all of the items returned from the request excluding the extra index we fetched for next page that have a disposition value of "open". Add a fourth key to each item called isPrimary indicating whether or not the item contains a primary color (red, blue, or yellow).
 		const primaryColors = ['red', 'blue', 'yellow'];
 		transformedResponse.open = res
 			.filter((item) => item.disposition == 'open')
@@ -38,7 +42,7 @@ const retrieve = async (options) => {
 				return item;
 			});
 
-		// The total number of items returned from the request that have a disposition value of "closed" and contain a primary color.
+		// The total number of items returned from the request excluding the extra index we fetched for next page that have a disposition value of "closed" and contain a primary color.
 		transformedResponse.closedPrimaryCount = res.filter(
 			(item) =>
 				item.disposition == 'closed' && primaryColors.includes(item.color)
@@ -47,21 +51,11 @@ const retrieve = async (options) => {
 		/// if page is 1 no prevPage
 		transformedResponse.previousPage = page == 1 ? null : page - 1;
 
-		// if page is last page no nextPage
-		// cloning uri adding limit to offset param and checking for results
-		const pageUri = uri.clone();
-		pageUri.removeSearch('offset');
-		offset += limit;
-		pageUri.addSearch('offset', offset);
-		const tempCheckNextPage = await fetch(pageUri);
-		const checkNextPage = await tempCheckNextPage.json();
-
-		transformedResponse.nextPage = checkNextPage.length === 0 ? null : page + 1;
 		return transformedResponse;
 	} catch (err) {
 		console.log(err);
 		// throw new Error('Api failed');
 	}
 };
-retrieve({ colors: [], page: 50, limit: 10 });
+retrieve({ colors: [], page: 1, limit: 10 });
 export default retrieve;
