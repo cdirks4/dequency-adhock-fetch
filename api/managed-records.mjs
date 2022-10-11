@@ -14,6 +14,7 @@ const retrieve = async (options) => {
 	const colors = options.colors || [];
 	let offset = (page - 1) * limit;
 	let incrementedLimit = limit + 1;
+
 	try {
 		// create URI, add search parameters to uri
 		const uri = new URI(window.path);
@@ -21,18 +22,23 @@ const retrieve = async (options) => {
 		uri.addSearch('limit', incrementedLimit);
 		uri.addSearch('color[]', colors);
 		uri.addSearch('offset', offset);
+
 		// request and parse info from URI
 		const tempRes = await fetch(uri);
 
 		// An array containing the object of all items returned from the request + an additional index to check for next page.
 		const res = await tempRes.json();
+
 		// define transformed object
 		const transformedResponse = {};
+
 		// checking if response is larger than limit if so next page exists and the index needs to be removed before transforming the rest of the data
 		transformedResponse.nextPage = res.length > limit ? page + 1 : null;
 		transformedResponse.nextPage && res.pop();
 
+		// adding all to transformed object ids excluding the extra index
 		transformedResponse.ids = res.map((item) => item.id);
+
 		// An array containing all of the items returned from the request excluding the extra index we fetched for next page that have a disposition value of "open". Add a fourth key to each item called isPrimary indicating whether or not the item contains a primary color (red, blue, or yellow).
 		const primaryColors = ['red', 'blue', 'yellow'];
 		transformedResponse.open = res
@@ -57,5 +63,5 @@ const retrieve = async (options) => {
 		// throw new Error('Api failed');
 	}
 };
-retrieve({ colors: [], page: 1, limit: 10 });
+// retrieve({ colors: [], page: 1, limit: 10 });
 export default retrieve;
